@@ -1,0 +1,14 @@
+/* This file hides the empty boxes left by blocked ads */
+div.ad,
+div#board-layout-ad,
+div.bottom-ad-container,
+div[class*="ad-container"],
+div[id*="ad-slot"],
+div[id^="google_ads_iframe"] {
+  display: none !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}

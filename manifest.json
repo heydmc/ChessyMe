@@ -1,0 +1,57 @@
+{
+  "manifest_version": 3,
+  "name": "Chess.com Tools",
+  "version": "3.5",
+  "description": "Adds a floating review button and blocks ads on Chess.com, managed remotely via Firebase.",
+  "permissions": [
+    "tabs",
+    "windows",
+    "storage",
+    "scripting",
+    "declarativeNetRequest",
+    "identity"
+  ],
+  "host_permissions": [
+    "https://www.chess.com/*"
+  ],
+  "oauth2": {
+    "client_id": "895038512670-6sh8gosaps0vajmv4edvltoloh44drsr.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/userinfo.email",
+      "https://www.googleapis.com/auth/userinfo.profile"
+    ]
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src https://*.firebaseio.com https://www.googleapis.com https://identitytoolkit.googleapis.com https://firestore.googleapis.com https://securetoken.googleapis.com;"
+  },
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "ruleset_1",
+        "enabled": false,
+        "path": "rules.json"
+      }
+    ]
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.chess.com/game/*", "*://*.chess.com/analysis/*"],
+      "css": ["styles.css"],
+      "js": ["content.js"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon.png"
+    }
+  },
+  "incognito": "spanning",
+  "icons": {
+    "16": "icon.png"
+  }
+}
+

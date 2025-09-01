@@ -1,0 +1,22 @@
+{
+  "users": {
+    "heydmc": {
+      "isAdblockEnabled": true,
+      "isReviewEnabled": true,
+      "username": "chesy_098",
+      "password": "Dmc@6213"
+    },
+    "friend_davad": {
+      "isAdblockEnabled": true,
+      "isReviewEnabled": false,
+      "username": "your_chess_username_2",
+      "password": "your_chess_password_2"
+    },
+    "another_user": {
+      "isAdblockEnabled": false,
+      "isReviewEnabled": true,
+      "username": "your_chess_username_3",
+      "password": "your_chess_password_3"
+    }
+  }
+}

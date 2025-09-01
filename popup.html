@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Chess.com Tools</title>
+  <meta charset="UTF-8">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+
+  <div class="container">
+    <div class="main-view">
+      <h1 class="title">Chess.com Tools</h1>
+      <button id="review-btn">Review Game</button>
+      <button id="adblock-btn">Toggle Ad-Block</button>
+      <button id="buy-plan-btn">Buy Plan</button>
+      <button id="how-to-use-btn">How to Use</button>
+      <button id="settings-btn">Settings</button>
+    </div>
+
+    <div id="buy-plan-view" style="display: none;">
+        <h1 class="title">Buy a Plan</h1>
+        <div class="input-group">
+            <input type="number" id="days-input" placeholder="Enter days">
+            <span id="price-display">Price: ₹0</span>
+        </div>
+        <button id="buy-now-btn">Buy Now</button>
+        <button id="trial-btn">Start 3-Day Free Trial</button>
+        <button id="show-coupon-btn">Have a Coupon Code?</button>
+
+        <!-- Coupon Code Section (initially hidden) -->
+        <div id="coupon-section" style="display: none;">
+            <input type="text" id="coupon-input" placeholder="Enter Code">
+            <button id="apply-coupon-btn">Apply Coupon</button>
+        </div>
+
+        <button id="back-btn">Back</button>
+    </div>
+    
+    <!-- Error Message container -->
+    <div id="error-container">
+        <p id="error-message" class="error"></p>
+    </div>
+
+    <div class="auth-section">
+      <p id="auth-status">Checking status...</p>
+      <button id="auth-btn">Sign In with Google</button>
+    </div>
+  </div>
+
+  <script src="firebase-app-compat.js"></script>
+  <script src="firebase-auth-compat.js"></script>
+  <script src="firebase-firestore-compat.js"></script> 
+  <script src="popup.js"></script>
+
+</body>
+</html>
+

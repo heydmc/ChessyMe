@@ -1,0 +1,21 @@
+#premium-review-button {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 2147483647; /* Ensures the button is on top of everything */
+  padding: 15px 25px;
+  font-size: 16px;
+  font-weight: 600;
+  background-image: linear-gradient(to right, #2af4e3ff, #0a82f3);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  transition: all 0.2s ease-in-out;
+}
+
+#premium-review-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+}

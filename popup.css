@@ -1,0 +1,158 @@
+/* --- Global Styles & Font Import --- */
+html, body {
+  margin: 0 !important;
+  padding: 0 !important;
+  font-family: 'Poppins', sans-serif;
+  background: transparent !important;
+}
+
+.container {
+  width: 240px;
+  padding: 16px;
+  background-color: #ffffff;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.title {
+  text-align: center;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+/* --- Button Styling --- */
+button {
+  width: 100%;
+  padding: 11px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: 'Poppins', sans-serif;
+  border: 1px solid transparent;
+  transition: all 0.2s ease-in-out;
+}
+button:last-child {
+  margin-bottom: 0;
+}
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+}
+button:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Primary buttons (solid green) */
+#review-btn, #buy-now-btn, #trial-btn, #apply-coupon-btn {
+  background-color: #2e8b57;
+  color: white;
+  border-color: #2e8b57;
+}
+
+/* Secondary & Tertiary buttons (outline/light grey) */
+#adblock-btn, #buy-plan-btn, #how-to-use-btn, #settings-btn, #back-btn, #auth-btn, #show-coupon-btn {
+  background-color: #f8f8f8;
+  color: #333;
+  border: 1px solid #ddd;
+}
+#adblock-btn:hover, #buy-plan-btn:hover, #how-to-use-btn:hover, #settings-btn:hover, #back-btn:hover, #auth-btn:hover, #show-coupon-btn:hover {
+  background-color: #f0f0f0;
+  border-color: #ccc;
+}
+#show-coupon-btn {
+    font-size: 13px;
+    padding: 9px;
+}
+
+/* --- Buy Plan & Coupon View --- */
+.input-group {
+  display: flex;
+  margin-bottom: 12px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+#coupon-section {
+    margin-top: 15px;
+}
+
+input[type="number"], input[type="text"] {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  box-sizing: border-box; /* Ensures padding doesn't affect width */
+}
+input[type="number"] {
+  width: 120px;
+}
+
+#coupon-input {
+    margin-bottom: 10px; /* Space between input and button */
+}
+
+input:focus {
+  outline: none;
+  border-color: #2e8b57;
+  box-shadow: 0 0 0 2px rgba(46, 139, 87, 0.2);
+}
+
+#price-display {
+  font-weight: 600;
+  font-size: 15px;
+  color: #333;
+}
+#price-display .original-price {
+    text-decoration: line-through;
+    color: #999;
+    font-size: 13px;
+    margin-right: 5px;
+}
+
+/* --- Authentication & Error Section --- */
+.auth-section {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #eee;
+  text-align: center;
+}
+
+#auth-status {
+  font-size: 12px;
+  color: #555;
+  margin-top: 0;
+  margin-bottom: 8px;
+  word-wrap: break-word;
+}
+
+#error-container {
+    min-height: 45px;
+}
+
+.error {
+  color: #c0392b;
+  background-color: #fdd;
+  border: 1px solid #c0392b;
+  border-radius: 6px;
+  padding: 10px;
+  text-align: center;
+  margin-top: 10px;
+  font-size: 13px;
+  display: none;
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+}
+.error.show {
+  display: block;
+  opacity: 1;
+}
+
