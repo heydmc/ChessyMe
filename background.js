@@ -251,3 +251,18 @@ function updateIconState(tabId, url) {
   const isChessDotCom = url && url.startsWith('https://www.chess.com');
   chrome.action[isChessDotCom ? 'enable' : 'disable'](tabId);
 }
+
+
+// In a utility file or background.js
+
+async function getDeviceId() {
+  let data = await chrome.storage.local.get('deviceId');
+  if (data.deviceId) {
+    return data.deviceId;
+  } else {
+    // Generate a new unique ID if one doesn't exist
+    const newId = self.crypto.randomUUID();
+    await chrome.storage.local.set({ deviceId: newId });
+    return newId;
+  }
+}

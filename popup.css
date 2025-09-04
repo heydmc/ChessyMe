@@ -156,3 +156,66 @@ input:focus {
   opacity: 1;
 }
 
+/* --- START: New Auth Form Styles --- */
+
+/* Style for the Email and Password input fields */
+input[type="email"], input[type="password"] {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  box-sizing: border-box; /* Important for consistent sizing */
+}
+
+/* Green border on focus, just like your other inputs */
+input[type="email"]:focus, input[type="password"]:focus {
+  outline: none;
+  border-color: #2e8b57;
+  box-shadow: 0 0 0 2px rgba(46, 139, 87, 0.2);
+}
+
+/* Style for the secondary buttons in the auth form */
+#show-login-form-btn,
+#signup-btn {
+  background-color: #f8f8f8;
+  color: #333;
+  border: 1px solid #ddd;
+}
+
+#show-login-form-btn:hover,
+#signup-btn:hover {
+  background-color: #f0f0f0;
+  border-color: #ccc;
+}
+
+/* Style for the primary Login button */
+#login-btn {
+  background-color: #2e8b57; /* Your primary green color */
+  color: white;
+  border-color: #2e8b57;
+}
+
+/* Style for the Logout button */
+#logout-btn {
+    background-color: #c0392b; /* A standard red for logout */
+    color: white;
+}
+
+#logout-btn:hover {
+    background-color: #a93226;
+}
+
+/* --- END: New Auth Form Styles --- */
+
+
+/* Add or update this rule in popup.css */
+#auth-error {
+  color: #c0392b; /* Red text color */
+  font-size: 13px;
+  text-align: center;
+  min-height: 18px; /* Prevents the layout from jumping when text appears */
+  margin-top: 10px;
+  margin-bottom: 10px;
+}

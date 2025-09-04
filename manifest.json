@@ -8,19 +8,11 @@
     "windows",
     "storage",
     "scripting",
-    "declarativeNetRequest",
-    "identity"
+    "declarativeNetRequest"
   ],
   "host_permissions": [
     "https://www.chess.com/*"
   ],
-  "oauth2": {
-    "client_id": "895038512670-6sh8gosaps0vajmv4edvltoloh44drsr.apps.googleusercontent.com",
-    "scopes": [
-      "https://www.googleapis.com/auth/userinfo.email",
-      "https://www.googleapis.com/auth/userinfo.profile"
-    ]
-  },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; connect-src https://*.firebaseio.com https://www.googleapis.com https://identitytoolkit.googleapis.com https://firestore.googleapis.com https://securetoken.googleapis.com;"
   },
@@ -54,4 +46,3 @@
     "16": "icon.png"
   }
 }
-

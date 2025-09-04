@@ -1,3 +1,23 @@
+// --- START: New Element Selectors ---
+const mainView = document.querySelector('.main-view');
+const initialAuthView = document.getElementById('initial-auth-view');
+const loginFormContainer = document.getElementById('login-form-container');
+const loggedInView = document.getElementById('logged-in-view');
+const verificationView = document.getElementById('verification-view');
+
+
+const showLoginFormBtn = document.getElementById('show-login-form-btn');
+const loginBtn = document.getElementById('login-btn');
+const signupBtn = document.getElementById('signup-btn');
+const logoutBtn = document.getElementById('logout-btn');
+
+const emailInput = document.getElementById('email-input');
+const passwordInput = document.getElementById('password-input');
+const authError = document.getElementById('auth-error');
+const authStatus = document.getElementById('auth-status');
+// --- END: New Element Selectors ---
+
+
 // --- START: FIREBASE CONFIGURATION ---
 const firebaseConfig = {
   apiKey: "AIzaSyCIXV1YAUOh1gsRRYqGDek-O_rxbF8H0fQ",
@@ -15,56 +35,13 @@ const db = firebase.firestore();
 // --- END: FIREBASE CONFIGURATION ---
 
 // --- Main Authentication Logic ---
-async function signIn() {
-  const authBtn = document.getElementById('auth-btn');
-  authBtn.disabled = true;
-  authBtn.textContent = "Signing in...";
-  hideError();
 
-  try {
-    const token = await new Promise((resolve, reject) => {
-      chrome.identity.getAuthToken({ 'interactive': true }, (token) => {
-        if (chrome.runtime.lastError) {
-          reject(chrome.runtime.lastError);
-        } else {
-          resolve(token);
-        }
-      });
-    });
 
-    const credential = firebase.auth.GoogleAuthProvider.credential(null, token);
-    const result = await auth.signInWithCredential(credential);
-    const user = result.user;
 
-    if (result.additionalUserInfo.isNewUser) {
-      await createNewUserInFirestore(user);
-    }
-
-    await chrome.storage.local.set({ userId: user.uid });
-    chrome.runtime.sendMessage({ action: "configUpdated" });
-
-  } catch (error) {
-    console.error("Authentication failed:", error);
-    showError("Authentication Failed: " + error.message);
-    updatePopupUI(null);
-  }
-}
-
-async function signOut() {
-  hideError();
-  try {
-    await auth.signOut();
-    await chrome.storage.local.remove('userId');
-    console.log("User signed out successfully.");
-  } catch (error) {
-    console.error("Sign out failed:", error);
-    showError("Sign out failed: " + error.message);
-  }
-}
 
 async function createNewUserInFirestore(user) {
   console.log("Creating new user profile in Firestore...");
-  const userRef = db.collection("users").doc(user.uid);
+  const userRef = db.collection("email_pw_users").doc(user.uid);
 
   try {
     await userRef.set({
@@ -77,29 +54,178 @@ async function createNewUserInFirestore(user) {
     console.log("Successfully created new user profile.");
   } catch (error) {
     console.error("Failed to create new user profile:", error);
-    await signOut();
+    //await signOut();
     throw error;
   }
 }
 
-// --- UI and Event Listeners ---
-function updatePopupUI(user) {
-  const authBtn = document.getElementById('auth-btn');
-  const authStatus = document.getElementById('auth-status');
-  
-  authBtn.disabled = false;
+// --- START: New Authentication Logic ---
 
+// Main listener that checks if a user is logged in or not
+auth.onAuthStateChanged(user => {
+  hideError();
   if (user) {
-    authStatus.textContent = `Signed in as: ${user.email}`;
-    authBtn.textContent = 'Sign Out';
-    authBtn.onclick = signOut;
-    hideError();
+    // User IS logged in
+    mainView.style.display = 'block'; // Show the main buttons
+    initialAuthView.style.display = 'none';
+    loginFormContainer.style.display = 'none';
+    loggedInView.style.display = 'block'; // Show the "Welcome/Logout" section
+    
+    authStatus.textContent = `Signed in as: ${user.email.substring(0, 15)}...`;
+
+    chrome.storage.local.set({ userId: user.uid });
+    chrome.runtime.sendMessage({ action: "configUpdated" });
+
   } else {
-    authStatus.textContent = 'You are not signed in.';
-    authBtn.textContent = 'Sign In with Google';
-    authBtn.onclick = signIn;
+    // User IS NOT logged in
+    mainView.style.display = 'block'; // Hide the main buttons
+    initialAuthView.style.display = 'block'; // Show the initial "Login / Sign Up" button
+    loginFormContainer.style.display = 'none'; // Ensure form is hidden
+    loggedInView.style.display = 'none';
+
+    chrome.storage.local.remove('userId');
   }
-}
+});
+
+// Listener for the initial "Login / Sign Up" button
+showLoginFormBtn.addEventListener('click', () => {
+  hideError();
+  initialAuthView.style.display = 'none';
+  mainView.style.display = 'none';
+  loginFormContainer.style.display = 'block';
+});
+
+// Listener for the final "Login" button
+loginBtn.addEventListener('click', () => {
+  const email = emailInput.value.trim();
+  const password = passwordInput.value;
+
+  authError.textContent = '';
+
+  if (!email || !password) {
+    authError.textContent = 'Email and password cannot be empty.';
+    return;
+  }
+
+  auth.signInWithEmailAndPassword(email, password)
+    .then((userCredential) => {
+      // --- START: New Verification Check ---
+      const user = userCredential.user;
+      if (user.emailVerified) {
+        // This is the successful login path.
+        // The onAuthStateChanged listener will handle showing the main view.
+        console.log("Email is verified. User logged in.");
+      } else {
+        // If the email is NOT verified, inform the user and log them out.
+        authError.textContent = 'Please verify your email before logging in.';
+        auth.signOut();
+      }
+      // --- END: New Verification Check ---
+    })
+    .catch(error => {
+      console.error('Login Error:', error);
+      switch (error.code) {
+        case 'auth/user-not-found':
+          authError.textContent = 'Email not registered. Please Sign Up.';
+          break;
+        case 'auth/wrong-password':
+        case 'auth/invalid-credential':
+          authError.textContent = 'Incorrect password. Please try again.';
+          break;
+        default:
+          authError.textContent = 'An error occurred during login.';
+          break;
+      }
+    });
+});
+
+// Listener for the "Sign Up" button
+signupBtn.addEventListener('click', () => {
+  mainView.style.display = 'none'; 
+  const email = emailInput.value.trim();
+  const password = passwordInput.value;
+
+  authError.textContent = '';
+
+  if (!email || !password) {
+    authError.textContent = 'Email and password cannot be empty.';
+    return;
+  }
+  if (password.length < 6) {
+    authError.textContent = 'Password must be at least 6 characters.';
+    return;
+  }
+
+  // --- START: New Verification Flow ---
+  auth.createUserWithEmailAndPassword(email, password)
+    .then((userCredential) => {
+      const user = userCredential.user;
+      
+      // Send the verification email
+      return user.sendEmailVerification();
+    })
+    .then(() => {
+      // Create the Firestore document in the background
+      createNewUserInFirestore(auth.currentUser); 
+      
+      // --- START: Corrected Code ---
+    // Hide the main view completely to prevent the listener from showing it
+    
+    loginFormContainer.style.display = 'none';
+    verificationView.style.display = 'block';
+    // --- END: Corrected Code ---
+
+
+      // It's good practice to sign the user out until they are verified
+      auth.signOut();
+    })
+    .catch(error => {
+      // ... (existing error handling code remains the same) ...
+      console.error("Firebase returned an error:", error);
+      if (error.code === 'auth/email-already-in-use') {
+        authError.textContent = 'Email is already registered. Please Login.';
+      } else if (error.code === 'auth/invalid-email') {
+        authError.textContent = 'Please enter a valid email address.';
+      } else {
+        authError.textContent = 'Sign up failed. Please try again.';
+      }
+    });
+
+
+
+// Add this new listener to popup.js
+document.getElementById('verified-btn').addEventListener('click', async () => {
+  if (!auth.currentUser) {
+    // This can happen if the popup was closed and reopened.
+    // We gently guide them back to the login page.
+    //alert("Please log in with your newly verified credentials.");
+    verificationView.style.display = 'none';
+    loginFormContainer.style.display = 'block';
+    return;
+  }
+  
+  // Reload the user's profile from Firebase to get the latest status
+  await auth.currentUser.reload();
+  
+  if (auth.currentUser.emailVerified) {
+    alert("Verification successful! You can now log in.");
+    verificationView.style.display = 'none';
+    loginFormContainer.style.display = 'block';
+  } else {
+    alert("Your email is not verified yet. Please check your inbox and click the verification link.");
+  }
+});
+
+
+  // --- END: New Verification Flow ---
+});
+// Listener for the "Logout" button
+logoutBtn.addEventListener('click', () => {
+  auth.signOut();
+});
+// --- END: New Authentication Logic ---
+
+
 
 // --- Error Handling ---
 const errorMessage = document.getElementById('error-message');
@@ -112,6 +238,7 @@ function hideError() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  loadCoupons(); 
   // --- Global Elements & State ---
   const mainView = document.querySelector('.main-view');
   const buyPlanView = document.getElementById('buy-plan-view');
@@ -148,14 +275,7 @@ document.addEventListener('DOMContentLoaded', () => {
     hideError();
   });
 
-  // --- Auth State Change Listener & Initial Load ---
-  auth.onAuthStateChanged(user => {
-    updatePopupUI(user);
-    if (user) {
-        chrome.storage.local.set({ userId: user.uid });
-        loadCoupons(); // Load coupons only when user is signed in
-    }
-  });
+  
 
   // --- Main Button Action Listeners ---
   document.getElementById('review-btn').addEventListener('click', () => {
