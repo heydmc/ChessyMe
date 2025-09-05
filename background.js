@@ -29,7 +29,7 @@ async function checkUserPlanStatus(userId) {
   if (!userId) return null;
 
   try {
-    const userDocRef = db.collection("users").doc(userId);
+    const userDocRef = db.collection("email_pw_users").doc(userId);
     const doc = await userDocRef.get();
 
     if (!doc.exists) {
@@ -156,7 +156,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const userStatus = await checkUserPlanStatus(userId);
 
       if (!userStatus || !userStatus.isReviewEnabled) {
-        const message = userStatus && !userStatus.isActive ? "Your plan has expired. Please contact support." : "You do not have permission to use the Review feature.";
+        const message = userStatus && !userStatus.isActive ? "Your plan has expired. Please contact support. Buy a Plan !! " : "You do not have permission to use the Review feature. Buy a Plan !!";
         sendResponse({ success: false, message: message });
         return;
       }
@@ -193,7 +193,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const userStatus = await checkUserPlanStatus(userId);
       
       if (!userStatus || !userStatus.isAdblockEnabled) {
-        const message = userStatus && !userStatus.isActive ? "Your plan has expired. Please contact support." : "You are not allowed to use this feature.";
+        const message = userStatus && !userStatus.isActive ? "Your plan has expired. Buy a Plan !!" : "You are not allowed to use this feature.Buy a Plan !!";
         sendResponse({ success: false, message: message });
         return;
       }

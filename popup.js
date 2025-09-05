@@ -117,7 +117,7 @@ loginBtn.addEventListener('click', () => {
         console.log("Email is verified. User logged in.");
       } else {
         // If the email is NOT verified, inform the user and log them out.
-        authError.textContent = 'Please verify your email before logging in.';
+        authError.textContent = 'Please verify your email before logging in.(CHeck Spam box too if email not found)';
         auth.signOut();
       }
       // --- END: New Verification Check ---
@@ -125,11 +125,11 @@ loginBtn.addEventListener('click', () => {
     .catch(error => {
       console.error('Login Error:', error);
       switch (error.code) {
-        case 'auth/user-not-found':
-          authError.textContent = 'Email not registered. Please Sign Up.';
+        case 'auth/invalid-login-credentials':
+          authError.textContent = 'Incorrect Details. Please Try Again.';
           break;
         case 'auth/wrong-password':
-        case 'auth/invalid-credential':
+        case 'auth/invalid-login-credentials':
           authError.textContent = 'Incorrect password. Please try again.';
           break;
         default:
@@ -161,15 +161,13 @@ signupBtn.addEventListener('click', () => {
     .then((userCredential) => {
       const user = userCredential.user;
       
+
+      createNewUserInFirestore(auth.currentUser);
       // Send the verification email
       return user.sendEmailVerification();
     })
     .then(() => {
-      // Create the Firestore document in the background
-      createNewUserInFirestore(auth.currentUser); 
       
-      // --- START: Corrected Code ---
-    // Hide the main view completely to prevent the listener from showing it
     
     loginFormContainer.style.display = 'none';
     verificationView.style.display = 'block';
