@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // --- 1. ENVIRONMENT DETECTION ---
   const ua = navigator.userAgent;
   // Trigger mobile mode for ALL Android devices, bypassing Lemur's hidden identity
-  const isAndroid = true;// /Android/i.test(ua);
+  const isAndroid =  /Android/i.test(ua);
 
   const unsupportedView = document.getElementById('unsupported-android-view');
   const extensionView = document.getElementById('extension-view');
