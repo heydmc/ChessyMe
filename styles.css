@@ -19,3 +19,14 @@
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(0,0,0,0.25);
 }
+/* --- HIDE REVIEW BUTTON ON MOBILE/NARROW SCREENS --- */
+@media screen and (max-width: 900px) {
+    #premium-review-button {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        width: 0 !important;
+        height: 0 !important;
+    }
+}

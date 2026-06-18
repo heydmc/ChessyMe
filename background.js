@@ -4,13 +4,13 @@ importScripts('./firebase-firestore-compat.js');
 
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyCIXV1YAUOh1gsRRYqGDek-O_rxbF8H0fQ",
-  authDomain: "chess-extension-v2.firebaseapp.com",
-  projectId: "chess-extension-v2",
-  storageBucket: "chess-extension-v2.firebasestorage.app",
-  messagingSenderId: "895038512670",
-  appId: "1:895038512670:web:dca811ffe539705f89580f",
-  measurementId: "G-KD3X3RY26V"
+    apiKey: "AIzaSyAy1rUcak70TT_r2yWGfDpc8zIb4dd97JQ",
+    authDomain: "chessy-me-website.firebaseapp.com",
+    projectId: "chessy-me-website",
+    storageBucket: "chessy-me-website.firebasestorage.app",
+    messagingSenderId: "133667896369",
+    appId: "1:133667896369:web:f7bef2bffef109bba7a910",
+    measurementId: "G-2H0DG0KP98"
 };
 
 // Initialize Firebase
@@ -53,8 +53,9 @@ async function checkUserPlanStatus(userId) {
       daysRemaining: Math.max(0, daysRemaining),
       isAdblockEnabled: effectiveAdblock,
       isReviewEnabled: effectiveReview,
-      username: userData.username,
-      password: userData.password
+      PremiumUsername: userData.PremiumUsername, // <-- UPDATED: The account used to log in
+      password: userData.password,
+      chessUsername: userData.chessUsername // <-- NEW: Saved for your future stats feature!
     };
   } catch (error) {
     console.error("Error fetching user plan status:", error);
@@ -108,6 +109,38 @@ async function restoreAdblockState() {
   }
 }
 
+function wipeChessCookies() {
+  console.log("Checking for and wiping Chess.com cookies...");
+  
+  chrome.cookies.getAll({ domain: "chess.com" }, (cookies) => {
+    if (cookies.length === 0) {
+      console.log("No Chess.com cookies found right now.");
+      return;
+    }
+
+    for (let cookie of cookies) {
+      // Strip the leading dot (e.g., ".chess.com" becomes "chess.com")
+      const cleanDomain = cookie.domain.startsWith('.') ? cookie.domain.substring(1) : cookie.domain;
+      
+      // Reconstruct the URL exactly as Chrome requires
+      const protocol = cookie.secure ? "https:" : "http:";
+      const cookieUrl = `${protocol}//${cleanDomain}${cookie.path}`;
+      
+      // Remove the cookie
+      chrome.cookies.remove({
+        url: cookieUrl,
+        name: cookie.name
+      }, (details) => {
+        if (chrome.runtime.lastError) {
+           console.error(`Failed to remove ${cookie.name}:`, chrome.runtime.lastError);
+        } else {
+           console.log(`Successfully deleted cookie: ${cookie.name}`);
+        }
+      });
+    }
+  });
+}
+
 // --- Real-Time Firebase Listener Setup ---
 async function setupFirebaseListener() {
   if (unsubscribeFromFirestore) {
@@ -150,18 +183,93 @@ function fillAndSubmitLoginForm(user, pass) {
 
 // --- Message Listeners ---
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'SYNC_AUTH') {
+      console.log("Auth Sync received in background!");
+      chrome.storage.local.set({
+          userId: request.uid,
+          token: request.token,
+          firstName: request.firstName || "User",
+          lastSynced: Date.now()
+      }, () => {
+          console.log("User successfully synced to extension!");
+          sendResponse({ success: true });
+      });
+      return true; 
+  }
+
+  // --- NEW: Handle Logout ---
+    if (request.action === 'SYNC_LOGOUT') {
+        console.log("Logout broadcast received! Clearing extension storage...");
+        
+        // Remove the stored user data
+        chrome.storage.local.remove(['userId', 'token', 'lastSynced'], () => {
+            console.log("Extension is now disconnected.");
+            sendResponse({ success: true });
+        });
+        return true; 
+    }
+
+    // --- NEW: Auto Login for Mobile/Lemur ---
+    if (request.action === "startAutoLogin") {
+      (async () => {
+        const { userId } = await chrome.storage.local.get('userId');
+        const userStatus = await checkUserPlanStatus(userId);
+
+        if (!userStatus || !userStatus.isActive) {
+          return;
+        }
+        if (!userStatus.PremiumUsername || !userStatus.password) {
+          return;
+        }
+
+        // NEW: Record the exact time they are starting the session
+        await chrome.storage.local.set({ lastLoginTime: Date.now() });
+
+        // Step 1: Wipe existing cookies so the login page actually loads
+        await wipeChessCookies();
+
+        // Step 2: Open a standard tab for the login page
+        chrome.tabs.create({ url: 'https://www.chess.com/login' }, (newTab) => {
+          if (!newTab || !newTab.id) {
+            return;
+          }
+
+          const tabId = newTab.id;
+          const listener = (updatedTabId, changeInfo, tab) => {
+            if (updatedTabId === tabId && changeInfo.status === 'complete') {
+              if (tab.url.includes('login')) {
+                chrome.scripting.insertCSS({ target: { tabId: tabId }, files: ['overlay.css'] });
+                chrome.scripting.executeScript({ target: { tabId: tabId }, func: injectLoginOverlay });
+                chrome.scripting.executeScript({ target: { tabId: tabId }, func: fillAndSubmitLoginForm, args: [userStatus.PremiumUsername, userStatus.password] });
+              } else if (tab.url.includes('chess.com/home') || tab.url === 'https://www.chess.com/') {
+                // Close the tab automatically after successful login
+                chrome.tabs.remove(tabId);
+                // Cleanup the listener to prevent memory leaks
+                chrome.tabs.onUpdated.removeListener(listener);
+              } else if (tab.url.includes('/analysis/game/live/')) {
+                chrome.tabs.onUpdated.removeListener(listener);
+              }
+            }
+          };
+
+          chrome.tabs.onUpdated.addListener(listener);
+        });
+      })();
+      return true;
+    }
+
   if (request.action === "startReview") {
     (async () => {
       const { userId } = await chrome.storage.local.get('userId');
       const userStatus = await checkUserPlanStatus(userId);
 
       if (!userStatus || !userStatus.isReviewEnabled) {
-        const message = userStatus && !userStatus.isActive ? "Your plan has expired. Please contact support." : "You do not have permission to use the Review feature.";
+        const message = userStatus && !userStatus.isActive ? "Your plan has expired. Please contact support. Buy a Plan !! " : "You do not have permission to use the Review feature. Buy a Plan !!";
         sendResponse({ success: false, message: message });
         return;
       }
-      if (!userStatus.username || !userStatus.password) {
-        sendResponse({ success: false, message: "Username or password missing in your profile." });
+      if (!userStatus.PremiumUsername || !userStatus.password) {
+        sendResponse({ success: false, message: "Premium username or password missing in your profile." });
         return;
       }
       sendResponse({ success: true });
@@ -173,7 +281,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             if (tab.url.includes('login')) {
               chrome.scripting.insertCSS({ target: { tabId: tabId }, files: ['overlay.css'] });
               chrome.scripting.executeScript({ target: { tabId: tabId }, func: injectLoginOverlay });
-              chrome.scripting.executeScript({ target: { tabId: tabId }, func: fillAndSubmitLoginForm, args: [userStatus.username, userStatus.password] });
+              chrome.scripting.executeScript({ target: { tabId: tabId }, func: fillAndSubmitLoginForm, args: [userStatus.PremiumUsername, userStatus.password] });
             } else if (tab.url.includes('chess.com/home')) {
               chrome.tabs.update(tabId, { url: reviewUrl });
             } else if (tab.url.includes('/analysis/game/live/')) {
@@ -193,7 +301,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const userStatus = await checkUserPlanStatus(userId);
       
       if (!userStatus || !userStatus.isAdblockEnabled) {
-        const message = userStatus && !userStatus.isActive ? "Your plan has expired. Please contact support." : "You are not allowed to use this feature.";
+        const message = userStatus && !userStatus.isActive ? "Your plan has expired. Buy a Plan !!" : "You are not allowed to use this feature.Buy a Plan !!";
         sendResponse({ success: false, message: message });
         return;
       }
@@ -247,7 +355,86 @@ chrome.tabs.onActivated.addListener(activeInfo => {
     if (!chrome.runtime.lastError && tab) updateIconState(tab.id, tab.url);
   });
 });
+
+// --- Continuous Session Alarm ---
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+    if (alarm.name === "sessionEnforcer") {
+        const { userId, lastLoginTime } = await chrome.storage.local.get(['userId', 'lastLoginTime']);
+        const userStatus = await checkUserPlanStatus(userId);
+        
+        // Condition 1: Expired plan
+        if (!userStatus || !userStatus.isActive) {
+            wipeChessCookies();
+            chrome.storage.local.remove('lastLoginTime'); 
+            return;
+        }
+
+        // Condition 2: 24-Hour Forced Rotation limit
+        // 1 Minute (1 minute * 60 seconds * 1000 milliseconds)
+        // const SESSION_LIMIT_MS = 1 * 60 * 1000;
+        // 1 Hour (1 hour * 60 minutes * 60 seconds * 1000 milliseconds)
+        // const SESSION_LIMIT_MS = 1 * 60 * 60 * 1000;
+        // 24 Hours (24 hours * 60 minutes * 60 seconds * 1000 milliseconds)
+        // const SESSION_LIMIT_MS = 24 * 60 * 60 * 1000;
+        const SESSION_LIMIT_MS = 12 * 60 * 60 * 1000; 
+
+        if (lastLoginTime && (Date.now() - lastLoginTime > SESSION_LIMIT_MS)) {
+            console.log("24-hour session expired. Wiping cookies to force re-login.");
+            wipeChessCookies();
+            chrome.storage.local.remove('lastLoginTime'); 
+        }
+    }
+});
+
 function updateIconState(tabId, url) {
-  const isChessDotCom = url && url.startsWith('https://www.chess.com');
-  chrome.action[isChessDotCom ? 'enable' : 'disable'](tabId);
+  const isAllowedPage = url && (
+    url.includes('chess.com') ||
+    url.includes('localhost') ||
+    url.includes('chessy-me-website.web.app') ||
+    url.includes('dogchess.web.app') ||
+    url.includes('dogchess.shop')
+  );
+
+  chrome.action[isAllowedPage ? 'enable' : 'disable'](tabId);
 }
+
+
+// In a utility file or background.js
+
+async function getDeviceId() {
+  let data = await chrome.storage.local.get('deviceId');
+  if (data.deviceId) {
+    return data.deviceId;
+  } else {
+    // Generate a new unique ID if one doesn't exist
+    const newId = self.crypto.randomUUID();
+    await chrome.storage.local.set({ deviceId: newId });
+    return newId;
+  }
+}
+
+// Change this to use chrome.runtime.sendMessage (no ID required)
+chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => {
+    // We remove the hardcoded ID check and accept the broadcast
+    if (request.action === 'SYNC_AUTH') {
+        console.log("Sync request received from:", sender.origin);
+
+        // Map the incoming uid to 'userId' to maintain compatibility with existing extension logic
+        chrome.storage.local.set({
+            userId: request.uid,
+            token: request.token,
+            firstName: request.firstName || "User",
+            lastSynced: Date.now()
+        }, () => {
+            console.log("User successfully authenticated inside the extension!");
+            
+            // Re-trigger the config listeners now that we have an active user ID
+            setupFirebaseListener();
+            restoreAdblockState();
+            
+            // Ping back success to the website
+            sendResponse({ success: true });
+        });
+    }
+    return true; 
+});
