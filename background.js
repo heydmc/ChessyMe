@@ -75,7 +75,6 @@ async function enableAdblocking() {
       if (!e.message.includes("No tab with id")) console.error(`Failed to insert CSS:`, e);
     }
   }
-  console.log("Ad-blocking has been ENABLED.");
 }
 async function disableAdblocking() {
   await chrome.declarativeNetRequest.updateEnabledRulesets({ disableRulesetIds: ['ruleset_1'] });
@@ -87,7 +86,6 @@ async function disableAdblocking() {
       if (!e.message.includes("No tab with id")) console.error(`Failed to remove CSS:`, e);
     }
   }
-  console.log("Ad-blocking has been DISABLED.");
 }
 
 // --- Restore State Function ---
@@ -110,11 +108,8 @@ async function restoreAdblockState() {
 }
 
 function wipeChessCookies() {
-  console.log("Checking for and wiping Chess.com cookies...");
-  
   chrome.cookies.getAll({ domain: "chess.com" }, (cookies) => {
     if (cookies.length === 0) {
-      console.log("No Chess.com cookies found right now.");
       return;
     }
 
@@ -133,8 +128,6 @@ function wipeChessCookies() {
       }, (details) => {
         if (chrome.runtime.lastError) {
            console.error(`Failed to remove ${cookie.name}:`, chrome.runtime.lastError);
-        } else {
-           console.log(`Successfully deleted cookie: ${cookie.name}`);
         }
       });
     }
@@ -149,14 +142,12 @@ async function setupFirebaseListener() {
   
   const { userId } = await chrome.storage.local.get('userId');
   if (!userId) {
-    console.log("No User ID set. Cannot set up real-time listener.");
     return;
   }
 
   const userDocRef = db.collection("users").doc(userId);
   
   unsubscribeFromFirestore = userDocRef.onSnapshot(async (doc) => {
-    console.log("Real-time config update received from Firebase.");
     await restoreAdblockState();
   }, (error) => {
     console.error("Firebase listener error:", error);
@@ -184,14 +175,12 @@ function fillAndSubmitLoginForm(user, pass) {
 // --- Message Listeners ---
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'SYNC_AUTH') {
-      console.log("Auth Sync received in background!");
       chrome.storage.local.set({
           userId: request.uid,
           token: request.token,
           firstName: request.firstName || "User",
           lastSynced: Date.now()
       }, () => {
-          console.log("User successfully synced to extension!");
           sendResponse({ success: true });
       });
       return true; 
@@ -199,11 +188,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   // --- NEW: Handle Logout ---
     if (request.action === 'SYNC_LOGOUT') {
-        console.log("Logout broadcast received! Clearing extension storage...");
-        
         // Remove the stored user data
         chrome.storage.local.remove(['userId', 'token', 'lastSynced'], () => {
-            console.log("Extension is now disconnected.");
             sendResponse({ success: true });
         });
         return true; 
@@ -318,7 +304,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   
   if (request.action === "configUpdated") {
-    console.log("User ID has been updated. Setting up new real-time listener.");
     setupFirebaseListener();
   }
 });
@@ -345,7 +330,8 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         chrome.scripting.insertCSS({
           target: { tabId: tabId },
           files: ['hide-ads.css']
-        }).catch(e => console.log(`Could not inject CSS: ${e.message}`));
+        }).catch(e => {
+        });
       }
     });
   }
@@ -370,16 +356,9 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
         }
 
         // Condition 2: 24-Hour Forced Rotation limit
-        // 1 Minute (1 minute * 60 seconds * 1000 milliseconds)
-        // const SESSION_LIMIT_MS = 1 * 60 * 1000;
-        // 1 Hour (1 hour * 60 minutes * 60 seconds * 1000 milliseconds)
-        // const SESSION_LIMIT_MS = 1 * 60 * 60 * 1000;
-        // 24 Hours (24 hours * 60 minutes * 60 seconds * 1000 milliseconds)
-        // const SESSION_LIMIT_MS = 24 * 60 * 60 * 1000;
         const SESSION_LIMIT_MS = 12 * 60 * 60 * 1000; 
 
         if (lastLoginTime && (Date.now() - lastLoginTime > SESSION_LIMIT_MS)) {
-            console.log("24-hour session expired. Wiping cookies to force re-login.");
             wipeChessCookies();
             chrome.storage.local.remove('lastLoginTime'); 
         }
@@ -417,8 +396,6 @@ async function getDeviceId() {
 chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => {
     // We remove the hardcoded ID check and accept the broadcast
     if (request.action === 'SYNC_AUTH') {
-        console.log("Sync request received from:", sender.origin);
-
         // Map the incoming uid to 'userId' to maintain compatibility with existing extension logic
         chrome.storage.local.set({
             userId: request.uid,
@@ -426,8 +403,6 @@ chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => 
             firstName: request.firstName || "User",
             lastSynced: Date.now()
         }, () => {
-            console.log("User successfully authenticated inside the extension!");
-            
             // Re-trigger the config listeners now that we have an active user ID
             setupFirebaseListener();
             restoreAdblockState();

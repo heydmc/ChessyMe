@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Chess.com Tools",
-  "version": "3.7",
-  "description": "Adds a floating review button and blocks ads on Chess.com, managed remotely via Firebase.",
+  "name": "Chessy Me",
+  "version": "1.0.0",
+  "description": "Play ad-free on Chess.com and instantly open game reviews in a new tab, incognito window, or a secondary premium account.",
   "permissions": [
     "tabs",
     "windows",
@@ -64,11 +64,15 @@
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
-      "16": "icon.png"
+      "16": "icon.png",
+      "48": "icon.png",
+      "128": "icon.png"
     }
   },
   "incognito": "spanning",
   "icons": {
-    "16": "icon.png"
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
   }
 }

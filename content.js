@@ -10,8 +10,6 @@ const isHardwareMobile =
 // Only inject the Blue Review button if we are strictly on a real Desktop PC
 if (!isHardwareMobile) {
     
-    console.log("Chessy Me: Desktop environment verified. Injecting Review button.");
-    
     // 1. Create the button element
     const reviewButton = document.createElement('button');
     reviewButton.id = 'premium-review-button'; 
@@ -44,7 +42,6 @@ if (!isHardwareMobile) {
     document.body.appendChild(reviewButton);
 
 } else {
-    console.log("Chessy Me: Mobile hardware detected! Suppressing the desktop review button.");
 }
 
 // --- COMMUNICATION BRIDGE ---
