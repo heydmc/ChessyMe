@@ -6,7 +6,7 @@
   width: 100vw;
   height: 100vh;
   /* A solid, dark charcoal background for a premium feel */
-  background-color: rgba(44, 44, 44, 0.9);
+  background-color: rgba(44, 44, 44, 0.1);
   z-index: 2147483647; /* Keep this at the max value */
 
   /* --- Centering Content --- */
