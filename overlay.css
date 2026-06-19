@@ -65,3 +65,9 @@
     opacity: 1;
   }
 }
+
+#extension-login-overlay {
+  /* ... your existing styles ... */
+  
+  pointer-events: none; /* Clicks will pass right through the overlay */
+}
