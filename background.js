@@ -326,7 +326,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
                 // After the 2nd attempt, pause for 10 seconds before trying again
                 if (loginAttempts === 3) {
-                  isWaiting = true;
+                  isWaiting = true; 
+
+                    chrome.tabs.reload(tabId);
+                
                   setTimeout(() => {
                     isWaiting = false;
                     chrome.tabs.reload(tabId); // Reload the tab to trigger attempt 3
