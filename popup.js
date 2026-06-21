@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // --- 4. NAVIGATION / HOW TO USE ---
   document.getElementById('how-to-use-btn').addEventListener('click', () => {
-      chrome.tabs.create({ url: 'https://www.google.com' }); // Update with your actual tutorial link
+      chrome.tabs.create({ url: 'https://dogchess.web.app/tutorial.html' }); // Update with your actual tutorial link
       window.close(); 
   });
 
