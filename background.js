@@ -295,6 +295,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         // Tell popup it was successful so it can close the window
         sendResponse({ success: true });
+          rotateUserCredentials(userId);
 
         // Record the exact time they are starting the session
         await chrome.storage.local.set({ lastLoginTime: Date.now() });
@@ -334,7 +335,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                   setTimeout(() => {
                     isWaiting = false;
                     chrome.tabs.reload(tabId); // Reload the tab to trigger attempt 3
-                  }, 10000);
+                  }, 2000);
                   return; 
                 }
 
