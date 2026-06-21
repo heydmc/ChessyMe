@@ -269,8 +269,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     // --- NEW: Auto Login for Mobile/Lemur ---
     if (request.action === "startAutoLogin") {
-        // NEW: Trigger the credential rotation asynchronously for the NEXT login
-        rotateUserCredentials(userId);
+        
       (async () => {
         const { userId } = await chrome.storage.local.get('userId');
         const userStatus = await checkUserPlanStatus(userId);
