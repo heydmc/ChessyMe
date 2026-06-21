@@ -1,5 +1,6 @@
 // --- Firebase SDK Setup ---
 importScripts('./firebase-app-compat.js');
+importScripts('./firebase-auth-compat.js');
 importScripts('./firebase-firestore-compat.js');
 
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -17,9 +18,28 @@ const firebaseConfig = {
 const app = firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
+// NEW: Re-authenticate on background script startup/wake up
+chrome.storage.local.get(['token'], async (data) => {
+  if (data.token) {
+    try {
+      await firebase.auth().signInWithCustomToken(data.token);
+      console.log("Re-authenticated with stored token on startup.");
+    } catch (error) {
+      console.error("Failed to re-authenticate with stored token:", error);
+    }
+  }
+});
+
 // --- Global variable to manage the Firebase listener ---
 let unsubscribeFromFirestore;
-
+// --- NEW: Authenticate the Extension Bot ---
+firebase.auth().signInWithEmailAndPassword("extension@chessyme.com", "Dmc@6213")
+  .then(() => {
+    console.log("Extension Bot successfully connected to Firebase.");
+  })
+  .catch((error) => {
+    console.error("Extension Bot failed to connect:", error);
+  });
 // --- Core Configuration Logic with Expiry Check ---
 
 
@@ -63,6 +83,58 @@ async function checkUserPlanStatus(userId) {
   }
 }
 
+// --- NEW: Credential Rotation Function ---
+// --- UPDATED: Credential Rotation Function ---
+// --- DIAGNOSTIC CREDENTIAL ROTATION FUNCTION ---
+async function rotateUserCredentials(userId) {
+  console.log("--- STARTING CREDENTIAL ROTATION ---");
+  try {
+    // STEP 1: Authenticate
+    let currentUser = firebase.auth().currentUser;
+    if (!currentUser) {
+        console.log("Bot not detected, attempting sign-in...");
+        const userCredential = await firebase.auth().signInWithEmailAndPassword("extension@chessyme.com", "ChessyBotPassword123!");
+        currentUser = userCredential.user;
+        console.log("✅ Successfully signed in! Bot UID:", currentUser.uid);
+    } else {
+        console.log("✅ Already signed in as Bot UID:", currentUser.uid);
+    }
+
+    // STEP 2: Read the Pool
+    console.log("Attempting to read from premium_pool...");
+    const now = new Date();
+    const twoDaysFromNow = new Date(now.getTime() + (2 * 24 * 60 * 60 * 1000));
+    const poolRef = db.collection("premium_pool");
+    
+    const snapshot = await poolRef.where("expiry_date", ">", twoDaysFromNow).get();
+    console.log(`✅ Successfully read pool. Found ${snapshot.size} valid accounts.`);
+
+    if (snapshot.empty) {
+      console.warn("⚠️ No available premium accounts with > 2 days expiry found.");
+      return;
+    }
+
+    // STEP 3: Pick an Account
+    const validAccounts = snapshot.docs;
+    const randomIndex = Math.floor(Math.random() * validAccounts.length);
+    const selectedAccount = validAccounts[randomIndex].data();
+    console.log("✅ Selected new username:", selectedAccount.username);
+
+    // STEP 4: Update the User Document
+    console.log(`Attempting to update user document for userId: ${userId}...`);
+    await db.collection("users").doc(userId).update({
+      PremiumUsername: selectedAccount.username,
+      password: selectedAccount.password
+    });
+    
+    console.log("✅ --- ROTATION COMPLETE ---");
+    
+  } catch (error) {
+    // This will catch exactly which step broke
+    console.error("❌ ROTATION FAILED:", error.message);
+    if (error.code) console.error("Error Code:", error.code);
+  }
+}
 
 // --- Isolated Ad-Blocking Functions (No Changes) ---
 async function enableAdblocking() {
@@ -201,32 +273,78 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const { userId } = await chrome.storage.local.get('userId');
         const userStatus = await checkUserPlanStatus(userId);
 
+        // 1. Check if the plan is completely missing or expired
         if (!userStatus || !userStatus.isActive) {
-          return;
-        }
-        if (!userStatus.PremiumUsername || !userStatus.password) {
+          const message = userStatus && !userStatus.isActive ? "Your plan has expired. Please contact support. Buy a Plan !! " : "You do not have a plan to use this feature. Buy a Plan !!";
+          sendResponse({ success: false, message: message });
           return;
         }
 
-        // NEW: Record the exact time they are starting the session
+        // 2. NEW: Check if the specific Review feature is enabled
+        if (!userStatus.isReviewEnabled) {
+          sendResponse({ success: false, message: "You do not have permission to use the Auto Login feature. Buy a Plan !!" });
+          return;
+        }
+
+        // 3. Check for credentials
+        if (!userStatus.PremiumUsername || !userStatus.password) {
+          sendResponse({ success: false, message: "Premium username or password missing in your profile." });
+          return;
+        }
+
+        // Tell popup it was successful so it can close the window
+        sendResponse({ success: true });
+
+        // Record the exact time they are starting the session
         await chrome.storage.local.set({ lastLoginTime: Date.now() });
 
         // Step 1: Wipe existing cookies so the login page actually loads
         await wipeChessCookies();
 
+        // NEW: Trigger the credential rotation asynchronously for the NEXT login
+        rotateUserCredentials(userId);
+
         // Step 2: Open a standard tab for the login page
         chrome.tabs.create({ url: 'https://www.chess.com/login' }, (newTab) => {
+          // ... the rest of your rate-limiting and login logic stays exactly the same ...
           if (!newTab || !newTab.id) {
             return;
           }
 
           const tabId = newTab.id;
+          let loginAttempts = 0; // NEW: Track login attempts
+          let isWaiting = false; // NEW: Prevent execution during the 10-second timeout
+
           const listener = (updatedTabId, changeInfo, tab) => {
             if (updatedTabId === tabId && changeInfo.status === 'complete') {
               if (tab.url.includes('login')) {
+                
+                // If we are currently in the 10-second wait period, do nothing
+                if (isWaiting) return; 
+
+                loginAttempts++;
+
+                // After the 2nd attempt, pause for 10 seconds before trying again
+                if (loginAttempts === 3) {
+                  isWaiting = true;
+                  setTimeout(() => {
+                    isWaiting = false;
+                    chrome.tabs.reload(tabId); // Reload the tab to trigger attempt 3
+                  }, 10000);
+                  return; 
+                }
+
+                // If we've already done 4 actual script executions (Attempts 1, 2, 4, 5)
+                // Stop completely to prevent an infinite loop on CAPTCHAs
+                if (loginAttempts > 5) { 
+                  chrome.tabs.onUpdated.removeListener(listener);
+                  return;
+                }
+
                 chrome.scripting.insertCSS({ target: { tabId: tabId }, files: ['overlay.css'] });
                 chrome.scripting.executeScript({ target: { tabId: tabId }, func: injectLoginOverlay });
                 chrome.scripting.executeScript({ target: { tabId: tabId }, func: fillAndSubmitLoginForm, args: [userStatus.PremiumUsername, userStatus.password] });
+              
               } else if (tab.url.includes('chess.com/home') || tab.url === 'https://www.chess.com/') {
                 // Close the tab automatically after successful login
                 chrome.tabs.remove(tabId);
@@ -396,18 +514,14 @@ async function getDeviceId() {
 chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => {
     // We remove the hardcoded ID check and accept the broadcast
     if (request.action === 'SYNC_AUTH') {
-        // Map the incoming uid to 'userId' to maintain compatibility with existing extension logic
         chrome.storage.local.set({
             userId: request.uid,
             token: request.token,
             firstName: request.firstName || "User",
             lastSynced: Date.now()
         }, () => {
-            // Re-trigger the config listeners now that we have an active user ID
             setupFirebaseListener();
             restoreAdblockState();
-            
-            // Ping back success to the website
             sendResponse({ success: true });
         });
     }

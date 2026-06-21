@@ -25,9 +25,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Attach auto-login functionality
       if (autoLoginBtn) {
         autoLoginBtn.addEventListener('click', () => {
-          // Send message to background.js to execute the auto-login sequence
-          chrome.runtime.sendMessage({ action: "startAutoLogin" });
-          window.close(); // Close the popup so the user can see the magic happen
+          hideError(); // Clear previous errors
+          chrome.runtime.sendMessage({ action: "startAutoLogin" }, (response) => {
+            if (chrome.runtime.lastError) {
+              showError("An unexpected error occurred.");
+            } else if (response && !response.success) {
+              // If it fails, show the error and DO NOT close the window
+              showError(response.message);
+            } else {
+              // Only close the popup if successful
+              window.close(); 
+            }
+          });
         });
       }
   } else {
@@ -68,18 +77,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // --- 3. ERROR HANDLING ---
   const errorMessage = document.getElementById('error-message');
+    const buyPlanBtn = document.getElementById('buy-plan-btn'); // Fetch the new button
   
   function showError(message) {
       errorMessage.textContent = message;
       errorMessage.classList.add('show');
+      if (buyPlanBtn) buyPlanBtn.style.display = 'block'; // Show button
   }
   function hideError() {
       errorMessage.classList.remove('show');
+      if (buyPlanBtn) buyPlanBtn.style.display = 'none'; // Hide button
   }
+
+    // NEW: Add click listener for the Buy Plan button
+    if (buyPlanBtn) {
+      buyPlanBtn.addEventListener('click', () => {
+        chrome.tabs.create({ url: 'https://dogchess.web.app/war.html' });
+      });
+    }
 
   // --- 4. NAVIGATION / HOW TO USE ---
   document.getElementById('how-to-use-btn').addEventListener('click', () => {
       chrome.tabs.create({ url: 'https://dogchess.web.app/tutorial.html' }); // Update with your actual tutorial link
+      window.close(); 
+  });
+  document.getElementById('support-btn').addEventListener('click', () => {
+      chrome.tabs.create({ url: 'https://dogchess.web.app/support.html' }); // Update with your actual support link
       window.close(); 
   });
 
