@@ -228,6 +228,9 @@ async function setupFirebaseListener() {
 
 // --- Functions to be injected into the webpage (No Changes) ---
 function injectLoginOverlay() {
+  // NEW: Check if it already exists so we don't create duplicates
+    if (document.getElementById('extension-login-overlay')) return;
+
     const overlayHTML = `<div id="extension-login-overlay"><div class="dots-container"><div class="dot one"></div><div class="dot two"></div><div class="dot three"></div></div><div class="message">Automating Login & Review...</div></div>`;
     document.body.insertAdjacentHTML('beforeend', overlayHTML);
 }
@@ -390,6 +393,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     if (currentTab.url.includes('login')) {
                       
                       // ATTEMPT 2: Inject Password only
+                      chrome.scripting.insertCSS({ target: { tabId: tabId }, files: ['overlay.css'] }).catch(()=>{});
                       chrome.scripting.executeScript({ target: { tabId: tabId }, func: updateOverlayMessage, args: ["Attempt 2: Re-injecting Password...", 0, false] });
                       
                       chrome.scripting.executeScript({ 
@@ -411,6 +415,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                           if (finalTab.url.includes('login')) {
                             
                             // ATTEMPT 3: Final Password Injection
+                            chrome.scripting.insertCSS({ target: { tabId: tabId }, files: ['overlay.css'] }).catch(()=>{});
                             chrome.scripting.executeScript({ target: { tabId: tabId }, func: updateOverlayMessage, args: ["Final Attempt: Submitting...", 0, false] });
                             
                             chrome.scripting.executeScript({ 
