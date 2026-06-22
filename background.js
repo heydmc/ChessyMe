@@ -244,6 +244,17 @@ function fillAndSubmitLoginForm(user, pass) {
     }
 }
 
+// --- NEW: Function to inject ONLY the password and submit ---
+function fillPasswordAndSubmit(pass) {
+    const passwordInput = document.getElementById('login-password');
+    const loginButton = document.getElementById('login');
+    if (passwordInput && loginButton) {
+        passwordInput.value = pass;
+        passwordInput.dispatchEvent(new Event('input', { bubbles: true }));
+        setTimeout(() => { loginButton.click(); }, 100);
+    }
+}
+
 // --- Message Listeners ---
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'SYNC_AUTH') {
@@ -269,7 +280,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     // --- NEW: Auto Login for Mobile/Lemur ---
     if (request.action === "startAutoLogin") {
-        
       (async () => {
         const { userId } = await chrome.storage.local.get('userId');
         const userStatus = await checkUserPlanStatus(userId);
@@ -295,7 +305,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         // Tell popup it was successful so it can close the window
         sendResponse({ success: true });
-          rotateUserCredentials(userId);
 
         // Record the exact time they are starting the session
         await chrome.storage.local.set({ lastLoginTime: Date.now() });
@@ -308,55 +317,79 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         // Step 2: Open a standard tab for the login page
         chrome.tabs.create({ url: 'https://www.chess.com/login' }, (newTab) => {
-          // ... the rest of your rate-limiting and login logic stays exactly the same ...
-          if (!newTab || !newTab.id) {
-            return;
-          }
+          if (!newTab || !newTab.id) return;
 
           const tabId = newTab.id;
-          let loginAttempts = 0; // NEW: Track login attempts
-          let isWaiting = false; // NEW: Prevent execution during the 10-second timeout
+          let hasAttemptedInitialLogin = false; // Prevents re-triggering the first step randomly
 
           const listener = (updatedTabId, changeInfo, tab) => {
-            if (updatedTabId === tabId && changeInfo.status === 'complete') {
-              if (tab.url.includes('login')) {
-                
-                // If we are currently in the 10-second wait period, do nothing
-                if (isWaiting) return; 
-
-                loginAttempts++;
-
-                // After the 2nd attempt, pause for 10 seconds before trying again
-                if (loginAttempts === 3) {
-                  isWaiting = true; 
-
-                    chrome.tabs.reload(tabId);
-                
-                  setTimeout(() => {
-                    isWaiting = false;
-                    chrome.tabs.reload(tabId); // Reload the tab to trigger attempt 3
-                  }, 2000);
-                  return; 
-                }
-
-                // If we've already done 4 actual script executions (Attempts 1, 2, 4, 5)
-                // Stop completely to prevent an infinite loop on CAPTCHAs
-                if (loginAttempts > 5) { 
-                  chrome.tabs.onUpdated.removeListener(listener);
-                  return;
-                }
-
-                chrome.scripting.insertCSS({ target: { tabId: tabId }, files: ['overlay.css'] });
-                chrome.scripting.executeScript({ target: { tabId: tabId }, func: injectLoginOverlay });
-                chrome.scripting.executeScript({ target: { tabId: tabId }, func: fillAndSubmitLoginForm, args: [userStatus.PremiumUsername, userStatus.password] });
+            if (updatedTabId === tabId) {
               
-              } else if (tab.url.includes('chess.com/home') || tab.url === 'https://www.chess.com/') {
-                // Close the tab automatically after successful login
+              // SUCCESS OUTCOMES: If it ever navigates away, clean up and close
+              if (tab.url.includes('chess.com/home') || tab.url === 'https://www.chess.com/') {
                 chrome.tabs.remove(tabId);
-                // Cleanup the listener to prevent memory leaks
                 chrome.tabs.onUpdated.removeListener(listener);
+                return;
               } else if (tab.url.includes('/analysis/game/live/')) {
                 chrome.tabs.onUpdated.removeListener(listener);
+                return;
+              }
+
+              // INITIAL LOAD: Wait for the first load to complete, then start the sequence
+              if (changeInfo.status === 'complete' && tab.url.includes('login') && !hasAttemptedInitialLogin) {
+                hasAttemptedInitialLogin = true;
+
+                // ATTEMPT 1: Full injection (Username + Password)
+                chrome.scripting.insertCSS({ target: { tabId: tabId }, files: ['overlay.css'] });
+                chrome.scripting.executeScript({ target: { tabId: tabId }, func: injectLoginOverlay });
+                chrome.scripting.executeScript({ 
+                    target: { tabId: tabId }, 
+                    func: fillAndSubmitLoginForm, 
+                    args: [userStatus.PremiumUsername, userStatus.password] 
+                });
+
+                // --- START THE TIMED WORKFLOW ---
+
+                // Wait 3 seconds to see if Attempt 1 succeeded
+                setTimeout(() => {
+                  chrome.tabs.get(tabId, (currentTab) => {
+                    if (chrome.runtime.lastError || !currentTab) return;
+                    
+                    // If still stuck on the login page, it failed. 
+                    if (currentTab.url.includes('login')) {
+                      console.log("Attempt 1 failed. Triggering Attempt 2 (Password only)...");
+                      
+                      // ATTEMPT 2: Inject Password only
+                      chrome.scripting.executeScript({ 
+                          target: { tabId: tabId }, 
+                          func: fillPasswordAndSubmit, 
+                          args: [userStatus.password] 
+                      });
+                      
+                      // Wait 10 seconds to allow human CAPTCHA interaction
+                      setTimeout(() => {
+                        chrome.tabs.get(tabId, (finalTab) => {
+                          if (chrome.runtime.lastError || !finalTab) return;
+                          
+                          // If still stuck on the login page after the CAPTCHA window
+                          if (finalTab.url.includes('login')) {
+                            console.log("Attempt 2 failed. Triggering Attempt 3 (Password only)...");
+                            
+                            // ATTEMPT 3: Inject Password only
+                            chrome.scripting.executeScript({ 
+                                target: { tabId: tabId }, 
+                                func: fillPasswordAndSubmit, 
+                                args: [userStatus.password] 
+                            });
+
+                            // Stop forever. We do not schedule any more attempts.
+                            // If they manually succeed later, the success URL check at the top will clean up.
+                          }
+                        });
+                      }, 10000); // 10 second CAPTCHA wait
+                    }
+                  });
+                }, 3000); // 3 second check for Attempt 1
               }
             }
           };
