@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // --- 1. ENVIRONMENT DETECTION ---
   const ua = navigator.userAgent;
   // Trigger mobile mode for ALL Android devices, bypassing Lemur's hidden identity
-  const isAndroid =  /Android/i.test(ua);
+  const isAndroid =  true; // /Android/i.test(ua);
 
   const unsupportedView = document.getElementById('unsupported-android-view');
   const extensionView = document.getElementById('extension-view');
@@ -43,6 +43,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Standard Desktop Environment
       if (desktopTools) desktopTools.style.display = 'block';
       if (mobileTools) mobileTools.style.display = 'none';
+
+      // --- NEW: INCOGNITO PERMISSION CHECK (DESKTOP ONLY) ---
+      const incognitoWarning = document.getElementById('incognito-warning');
+      
+      chrome.extension.isAllowedIncognitoAccess((isAllowed) => {
+        if (!isAllowed && incognitoWarning) {
+          incognitoWarning.style.display = 'block';
+        }
+      });
+
+      const openSettingsBtn = document.getElementById('open-settings-btn');
+      if (openSettingsBtn) {
+        openSettingsBtn.addEventListener('click', () => {
+          const extensionId = chrome.runtime.id;
+          const settingsUrl = `chrome://extensions/?id=${extensionId}`;
+          chrome.tabs.create({ url: settingsUrl });
+        });
+      }
   }
 
   // --- 2. AUTHENTICATION (SYNC) CHECK ---
@@ -58,7 +76,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       syncStatus.style.backgroundColor = "#e6f4ea"; // Light green
       syncStatus.style.color = "#137333";
   } else {
-      syncStatus.textContent = "❌ Not Synced. Connect via Website.";
+      syncStatus.textContent = "❌ Not Connected,Please visit Website.";
       syncStatus.style.backgroundColor = "#fce8e6"; // Light red
       syncStatus.style.color = "#c5221f";
 
@@ -103,6 +121,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   document.getElementById('support-btn').addEventListener('click', () => {
       chrome.tabs.create({ url: 'https://dogchess.web.app/support.html' }); // Update with your actual support link
+      window.close(); 
+  });
+
+  document.getElementById('visit-website-btn').addEventListener('click', () => {
+      chrome.tabs.create({ url: 'https://dogchess.web.app/war.html#extension_connect' }); // Update with your actual website link
       window.close(); 
   });
 
