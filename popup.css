@@ -50,7 +50,7 @@ button:active {
 }
 
 /* Primary buttons (solid green) */
-#review-btn, #buy-now-btn, #trial-btn, #apply-coupon-btn {
+#review-btn, #buy-now-btn, #trial-btn, #apply-coupon-btn ,#visit-website-btn {
   background-color: #2e8b57;
   color: white;
   border-color: #2e8b57;
@@ -220,4 +220,31 @@ input[type="email"]:focus, input[type="password"]:focus {
   min-height: 18px; /* Prevents the layout from jumping when text appears */
   margin-top: 10px;
   margin-bottom: 10px;
+}
+
+/* --- Incognito Warning Styles --- */
+.warning-box {
+  display: none; /* Hidden by default, JS will reveal it */
+  background-color: #fff3cd;
+  color: #856404;
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  text-align: center;
+  border: 1px solid #ffeeba;
+}
+
+.settings-link {
+  color: #0056b3;
+  text-decoration: underline;
+  cursor: pointer;
+  font-weight: 600;
+  display: block;
+  margin-top: 5px;
+  transition: color 0.2s;
+}
+
+.settings-link:hover {
+  color: #003d82;
 }

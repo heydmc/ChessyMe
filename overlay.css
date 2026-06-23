@@ -7,6 +7,7 @@
   height: 100vh;
   /* A solid, dark charcoal background for a premium feel */
   background-color: rgba(44, 44, 44, 0.8);
+  backdrop-filter: blur(1px); /* This adds the actual blur effect */
   z-index: 2147483647; /* Keep this at the max value */
 
   /* --- Centering Content --- */
