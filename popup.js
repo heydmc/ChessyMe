@@ -1,180 +1,154 @@
-// --- START: FIREBASE CONFIGURATION ---
-const firebaseConfig = {
-  apiKey: "AIzaSyCIXV1YAUOh1gsRRYqGDek-O_rxbF8H0fQ",
-  authDomain: "chess-extension-v2.firebaseapp.com",
-  projectId: "chess-extension-v2",
-  storageBucket: "chess-extension-v2.firebasestorage.app",
-  messagingSenderId: "895038512670",
-  appId: "1:895038512670:web:dca811ffe539705f89580f",
-  measurementId: "G-KD3X3RY26V"
-};
-// Initialize Firebase
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
-// --- END: FIREBASE CONFIGURATION ---
+document.addEventListener('DOMContentLoaded', async () => {
+  // --- 1. ENVIRONMENT DETECTION ---
+  const ua = navigator.userAgent;
+  // Trigger mobile mode for ALL Android devices, bypassing Lemur's hidden identity
+  const isAndroid =  /Android/i.test(ua);
 
-// --- Main Authentication Logic ---
-async function signIn() {
-  const authBtn = document.getElementById('auth-btn');
-  authBtn.disabled = true;
-  authBtn.textContent = "Signing in...";
-  hideError();
+  const unsupportedView = document.getElementById('unsupported-android-view');
+  const extensionView = document.getElementById('extension-view');
+  const desktopTools = document.getElementById('desktop-tools');
+  const mobileTools = document.getElementById('mobile-tools');
+  // Updated ID to match our new HTML
+  const autoLoginBtn = document.getElementById('auto-login-btn');
 
-  try {
-    const token = await new Promise((resolve, reject) => {
-      chrome.identity.getAuthToken({ 'interactive': true }, (token) => {
-        if (chrome.runtime.lastError) {
-          reject(chrome.runtime.lastError);
-        } else {
-          resolve(token);
+  // If the popup is open, the browser supports extensions.
+  // Hide the unsupported view and show the main extension view.
+  if (unsupportedView) unsupportedView.style.display = 'none';
+  if (extensionView) extensionView.style.display = 'block';
+
+  // Environment switching logic
+  if (isAndroid) {
+      // Mobile Environment (Lemur)
+      if (desktopTools) desktopTools.style.display = 'none';
+      if (mobileTools) mobileTools.style.display = 'block';
+
+      // Attach auto-login functionality
+      if (autoLoginBtn) {
+        autoLoginBtn.addEventListener('click', () => {
+          hideError(); // Clear previous errors
+          chrome.runtime.sendMessage({ action: "startAutoLogin" }, (response) => {
+            if (chrome.runtime.lastError) {
+              showError("An unexpected error occurred.");
+            } else if (response && !response.success) {
+              // If it fails, show the error and DO NOT close the window
+              showError(response.message);
+            } else {
+              // Only close the popup if successful
+              window.close(); 
+            }
+          });
+        });
+      }
+  } else {
+      // Standard Desktop Environment
+      if (desktopTools) desktopTools.style.display = 'block';
+      if (mobileTools) mobileTools.style.display = 'none';
+
+      // --- NEW: INCOGNITO PERMISSION CHECK (DESKTOP ONLY) ---
+      const incognitoWarning = document.getElementById('incognito-warning');
+      
+      chrome.extension.isAllowedIncognitoAccess((isAllowed) => {
+        if (!isAllowed && incognitoWarning) {
+          incognitoWarning.style.display = 'block';
         }
       });
-    });
 
-    const credential = firebase.auth.GoogleAuthProvider.credential(null, token);
-    const result = await auth.signInWithCredential(credential);
-    const user = result.user;
-
-    if (result.additionalUserInfo.isNewUser) {
-      await createNewUserInFirestore(user);
-    }
-
-    await chrome.storage.local.set({ userId: user.uid });
-    chrome.runtime.sendMessage({ action: "configUpdated" });
-
-  } catch (error) {
-    console.error("Authentication failed:", error);
-    showError("Authentication Failed: " + error.message);
-    updatePopupUI(null);
-  }
-}
-
-async function signOut() {
-  hideError();
-  try {
-    await auth.signOut();
-    await chrome.storage.local.remove('userId');
-    console.log("User signed out successfully.");
-  } catch (error) {
-    console.error("Sign out failed:", error);
-    showError("Sign out failed: " + error.message);
-  }
-}
-
-async function createNewUserInFirestore(user) {
-  console.log("Creating new user profile in Firestore...");
-  const userRef = db.collection("users").doc(user.uid);
-
-  try {
-    await userRef.set({
-      email: user.email,
-      displayName: user.displayName,
-      isAdblockEnabled: false,
-      isReviewEnabled: false,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    });
-    console.log("Successfully created new user profile.");
-  } catch (error) {
-    console.error("Failed to create new user profile:", error);
-    await signOut();
-    throw error;
-  }
-}
-
-// --- UI and Event Listeners ---
-function updatePopupUI(user) {
-  const authBtn = document.getElementById('auth-btn');
-  const authStatus = document.getElementById('auth-status');
-  
-  authBtn.disabled = false;
-
-  if (user) {
-    authStatus.textContent = `Signed in as: ${user.email}`;
-    authBtn.textContent = 'Sign Out';
-    authBtn.onclick = signOut;
-    hideError();
-  } else {
-    authStatus.textContent = 'You are not signed in.';
-    authBtn.textContent = 'Sign In with Google';
-    authBtn.onclick = signIn;
-  }
-}
-
-// --- Error Handling ---
-const errorMessage = document.getElementById('error-message');
-function showError(message) {
-    errorMessage.textContent = message;
-    errorMessage.classList.add('show');
-}
-function hideError() {
-    errorMessage.classList.remove('show');
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  // --- Global Elements & State ---
-  const mainView = document.querySelector('.main-view');
-  const buyPlanView = document.getElementById('buy-plan-view');
-  let firestoreCoupons = {};
-  let appliedCoupon = null; // Will store the full coupon object {code, discount, whatsappNumber}
-
-  // --- Fetch Coupons from Firestore ---
-  async function loadCoupons() {
-      try {
-          const snapshot = await db.collection("coupons").get();
-          snapshot.forEach(doc => {
-              firestoreCoupons[doc.id] = doc.data();
-          });
-          console.log("Successfully loaded coupons:", firestoreCoupons);
-      } catch (error) {
-          console.error("Error loading coupons:", error);
-          showError("Could not load coupon data.");
+      const openSettingsBtn = document.getElementById('open-settings-btn');
+      if (openSettingsBtn) {
+        openSettingsBtn.addEventListener('click', () => {
+          const extensionId = chrome.runtime.id;
+          const settingsUrl = `chrome://extensions/?id=${extensionId}`;
+          chrome.tabs.create({ url: settingsUrl });
+        });
       }
   }
 
-  // --- View Switching ---
-  document.getElementById('buy-plan-btn').addEventListener('click', () => {
-    if (!auth.currentUser) {
-        showError("Please sign in to buy a plan.");
-        return;
+  // --- 2. AUTHENTICATION (SYNC) CHECK ---
+  const syncStatus = document.getElementById('sync-status');
+  let currentUserSyncId = null;
+
+  // Retrieve the userId saved by the background service worker during authentication
+  const data = await chrome.storage.local.get(['userId', 'firstName']);
+  
+  if (data.userId) {
+      currentUserSyncId = data.userId;
+      syncStatus.textContent = `✅ Connected as ${data.firstName || 'User'}`;
+      syncStatus.style.backgroundColor = "#e6f4ea"; // Light green
+      syncStatus.style.color = "#137333";
+  } else {
+      syncStatus.textContent = "❌ Not Connected,Please visit Website.";
+      syncStatus.style.backgroundColor = "#fce8e6"; // Light red
+      syncStatus.style.color = "#c5221f";
+
+      const disconnectBtn = document.getElementById('disconnect-btn');
+      if (disconnectBtn) disconnectBtn.style.display = 'none';
+  }
+
+  const disconnectBtn = document.getElementById('disconnect-btn');
+  if (disconnectBtn) {
+    disconnectBtn.addEventListener('click', () => {
+      chrome.storage.local.remove(['userId', 'token', 'firstName', 'lastSynced'], () => {
+        window.location.reload();
+      });
+    });
+  }
+
+  // --- 3. ERROR HANDLING ---
+  const errorMessage = document.getElementById('error-message');
+    const buyPlanBtn = document.getElementById('buy-plan-btn'); // Fetch the new button
+  
+  function showError(message) {
+      errorMessage.textContent = message;
+      errorMessage.classList.add('show');
+      if (buyPlanBtn) buyPlanBtn.style.display = 'block'; // Show button
+  }
+  function hideError() {
+      errorMessage.classList.remove('show');
+      if (buyPlanBtn) buyPlanBtn.style.display = 'none'; // Hide button
+  }
+
+    // NEW: Add click listener for the Buy Plan button
+    if (buyPlanBtn) {
+      buyPlanBtn.addEventListener('click', () => {
+        chrome.tabs.create({ url: 'https://dogchess.web.app/war.html' });
+      });
     }
-    mainView.style.display = 'none';
-    buyPlanView.style.display = 'block';
-    hideError();
+
+  // --- 4. NAVIGATION / HOW TO USE ---
+  document.getElementById('how-to-use-btn').addEventListener('click', () => {
+      chrome.tabs.create({ url: 'https://dogchess.web.app/tutorial.html' }); // Update with your actual tutorial link
+      window.close(); 
   });
-  document.getElementById('back-btn').addEventListener('click', () => {
-    mainView.style.display = 'block';
-    buyPlanView.style.display = 'none';
-    hideError();
+  document.getElementById('support-btn').addEventListener('click', () => {
+      chrome.tabs.create({ url: 'https://dogchess.web.app/support.html' }); // Update with your actual support link
+      window.close(); 
   });
 
-  // --- Auth State Change Listener & Initial Load ---
-  auth.onAuthStateChanged(user => {
-    updatePopupUI(user);
-    if (user) {
-        chrome.storage.local.set({ userId: user.uid });
-        loadCoupons(); // Load coupons only when user is signed in
-    }
+  document.getElementById('visit-website-btn').addEventListener('click', () => {
+      chrome.tabs.create({ url: 'https://dogchess.web.app/war.html#extension_connect' }); // Update with your actual website link
+      window.close(); 
   });
 
-  // --- Main Button Action Listeners ---
+  // --- 5. CORE UTILITY ACTIONS ---
   document.getElementById('review-btn').addEventListener('click', () => {
-    if (!auth.currentUser) {
-        showError("Please sign in to use this feature.");
+    if (!currentUserSyncId) {
+        showError("Please connect your extension via the website dashboard first.");
         return;
     }
     hideError();
     chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+      if (!tabs || !tabs[0] || !tabs[0].url) {
+        showError("No active tab found.");
+        return;
+      }
       const currentUrl = tabs[0].url;
       const regex = /(?:game|analysis)(?:.*\/)(\d{10,})/;
       const match = currentUrl.match(regex);
 
       if (match && match[1]) {
-        const gameId = match[1];
-        chrome.runtime.sendMessage({ action: "startReview", gameId: gameId }, (response) => {
+        chrome.runtime.sendMessage({ action: "startReview", gameId: match[1] }, (response) => {
           if (chrome.runtime.lastError) {
             showError("An unexpected error occurred.");
-            console.error(chrome.runtime.lastError.message);
           } else if (response && !response.success) {
             showError(response.message);
           } else {
@@ -188,15 +162,14 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('adblock-btn').addEventListener('click', () => {
-    if (!auth.currentUser) {
-        showError("Please sign in to use this feature.");
+    if (!currentUserSyncId) {
+        showError("Please connect your extension via the website dashboard first.");
         return;
     }
     hideError();
     chrome.runtime.sendMessage({ action: "toggleAdblock" }, (response) => {
       if (chrome.runtime.lastError) {
         showError("An unexpected error occurred.");
-        console.error(chrome.runtime.lastError.message);
       } else if (response && response.success) {
         window.close();
       } else if (response && !response.success) {
@@ -204,86 +177,4 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   });
-
-  document.getElementById('how-to-use-btn').addEventListener('click', () => {
-      chrome.tabs.create({ url: 'https://www.google.com' });
-      window.close();
-  });
-  
-  // --- Buy Plan & Coupon Logic ---
-  const daysInput = document.getElementById('days-input');
-  const priceDisplay = document.getElementById('price-display');
-  const couponSection = document.getElementById('coupon-section');
-  const couponInput = document.getElementById('coupon-input');
-
-  function updatePrice() {
-    const days = parseInt(daysInput.value, 10) || 0;
-    let finalPrice = days * 5;
-    const originalPrice = finalPrice;
-
-    if (appliedCoupon) {
-        const discountPercentage = appliedCoupon.discount;
-        finalPrice = Math.round(originalPrice - (originalPrice * discountPercentage / 100));
-        priceDisplay.innerHTML = `<span class="original-price">₹${originalPrice}</span> ₹${finalPrice}`;
-    } else {
-        priceDisplay.textContent = `Price: ₹${finalPrice}`;
-    }
-  }
-
-  daysInput.addEventListener('input', updatePrice);
-  
-  document.getElementById('show-coupon-btn').addEventListener('click', () => {
-    couponSection.style.display = couponSection.style.display === 'none' ? 'block' : 'none';
-  });
-
-  document.getElementById('apply-coupon-btn').addEventListener('click', () => {
-    const code = couponInput.value.toUpperCase();
-    if (firestoreCoupons[code]) {
-        appliedCoupon = { code, ...firestoreCoupons[code] };
-        updatePrice();
-        showError(`Success! ${appliedCoupon.discount}% discount applied.`);
-    } else {
-        appliedCoupon = null;
-        updatePrice();
-        showError("Invalid coupon code.");
-    }
-  });
-
-  document.getElementById('buy-now-btn').addEventListener('click', () => {
-    const days = parseInt(daysInput.value, 10) || 0;
-    if (days <= 0) {
-      showError("Please enter a valid number of days.");
-      return;
-    }
-
-    const userEmail = auth.currentUser.email;
-    const originalPrice = days * 5;
-    let finalPrice = originalPrice;
-    
-    // Determine which WhatsApp number to use
-    const defaultWhatsappNumber = '918338851532';
-    const whatsappNumber = appliedCoupon ? appliedCoupon.whatsappNumber : defaultWhatsappNumber;
-    
-    let message = `Hi, I'd like to buy a ${days}-day plan for the user: ${userEmail}.`;
-
-    if (appliedCoupon) {
-        finalPrice = Math.round(originalPrice - (originalPrice * appliedCoupon.discount / 100));
-        message += `\nOriginal Price: ₹${originalPrice}, Coupon Applied: ${appliedCoupon.code}, Final Price: ₹${finalPrice}.`;
-    } else {
-        message += `\nPrice: ₹${originalPrice}.`;
-    }
-
-    const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
-    chrome.tabs.create({ url: whatsappUrl });
-    window.close();
-  });
-
-  document.getElementById('trial-btn').addEventListener('click', () => {
-      const userEmail = auth.currentUser ? auth.currentUser.email : 'Unknown User';
-      const message = `Hi, I'd like to start my 3-day free trial for the Chess.com Tools extension. My email is ${userEmail}.`;
-      const whatsappUrl = `https://wa.me/918338851532?text=${encodeURIComponent(message)}`;
-      chrome.tabs.create({ url: whatsappUrl });
-      window.close();
-  });
 });
-

@@ -8,51 +8,50 @@
 </head>
 <body>
 
-  <div class="container">
-    <div class="main-view">
-      <h1 class="title">Chess.com Tools</h1>
-      <button id="review-btn">Review Game</button>
-      <button id="adblock-btn">Toggle Ad-Block</button>
-      <button id="buy-plan-btn">Buy Plan</button>
-      <button id="how-to-use-btn">How to Use</button>
-      <button id="settings-btn">Settings</button>
-    </div>
+  <div id="extension-view" style="display: none;">
+    <div class="container">
+      
+      <div id="sync-status" style="text-align: center; font-size: 12px; margin-bottom: 12px; padding: 4px; border-radius: 4px; font-weight: 500;">
+        Checking sync status...
+      </div>
 
-    <div id="buy-plan-view" style="display: none;">
-        <h1 class="title">Buy a Plan</h1>
-        <div class="input-group">
-            <input type="number" id="days-input" placeholder="Enter days">
-            <span id="price-display">Price: ₹0</span>
-        </div>
-        <button id="buy-now-btn">Buy Now</button>
-        <button id="trial-btn">Start 3-Day Free Trial</button>
-        <button id="show-coupon-btn">Have a Coupon Code?</button>
+      <div class="main-view" id="main-view">
+        <h1 class="title">ChessY Me Tools</h1>
+        
+        <div id="desktop-tools">
+          <div id="incognito-warning" class="warning-box">
+            ⚠️ Incognito access required. 
+            <span id="open-settings-btn" class="settings-link">Click here to enable</span>
+          </div>
 
-        <!-- Coupon Code Section (initially hidden) -->
-        <div id="coupon-section" style="display: none;">
-            <input type="text" id="coupon-input" placeholder="Enter Code">
-            <button id="apply-coupon-btn">Apply Coupon</button>
+          <button id="review-btn">Review Game</button>
+          <button id="adblock-btn">Toggle Ad-Block</button>
         </div>
 
-        <button id="back-btn">Back</button>
-    </div>
-    
-    <!-- Error Message container -->
-    <div id="error-container">
-        <p id="error-message" class="error"></p>
-    </div>
+        <div id="mobile-tools" style="display: none;">
+          <button id="auto-login-btn" style="background-color: #81b64c; color: white; padding: 16px; border-radius: 8px; font-size: 1.1rem; font-weight: 800; cursor: pointer; width: 100%; border: none; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            Auto Login to Chess.com
+          </button>
+        </div>
 
-    <div class="auth-section">
-      <p id="auth-status">Checking status...</p>
-      <button id="auth-btn">Sign In with Google</button>
+        <button id="how-to-use-btn">How to Use</button>
+        <button id="support-btn">Support</button>
+        <hr style="margin: 15px 0; border: 0; border-top: 1px solid #ccc;">
+        <button id="disconnect-btn" style="width: 100%; padding: 8px; background: #ffebee; color: #c5221f; border: 1px solid #ffcdd2; border-radius: 4px; cursor: pointer; font-weight: bold;">
+            Disconnect Extension
+        </button>
+        <button id="visit-website-btn">Visit Website</button>
+      </div>
+      
+      <div id="error-container">
+          <p id="error-message" class="error"></p>
+          <button id="buy-plan-btn" style="display: none; width: 100%; margin-top: 10px; padding: 10px; background-color: #fbbc05; color: #333; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              Upgrade / Buy Plan
+          </button>
+      </div>
     </div>
   </div>
 
-  <script src="firebase-app-compat.js"></script>
-  <script src="firebase-auth-compat.js"></script>
-  <script src="firebase-firestore-compat.js"></script> 
   <script src="popup.js"></script>
-
 </body>
 </html>
-
