@@ -25,7 +25,7 @@ function addFloatingClassToGameControls() {
 // --- NEW: Custom Mobile Review Bar for Lemur (Updated with Exact Selectors) ---
 function injectCustomMobileReviewBar() {
   const currentUrl = window.location.href;
-  const isReviewOrAnalysis = currentUrl.includes('review?move=') || currentUrl.includes('analysis?move=');
+  const isReviewOrAnalysis = currentUrl.includes('review') || currentUrl.includes('analysis');
 
   let customBar = document.getElementById('chessy-mobile-review-bar');
 
@@ -59,7 +59,7 @@ function injectCustomMobileReviewBar() {
       color: #fff;
       border: none;
       border-radius: 5px;
-      padding: 10px;
+      padding: 16px 10px; /* 16px top/bottom, 10px left/right */
       font-weight: bold;
       font-size: 13px;
       cursor: pointer;
