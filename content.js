@@ -59,7 +59,7 @@ function injectCustomMobileReviewBar() {
       color: #fff;
       border: none;
       border-radius: 5px;
-      padding: 16px 10px; /* 16px top/bottom, 10px left/right */
+      padding: 25px 10px; /* 16px top/bottom, 10px left/right */
       font-weight: bold;
       font-size: 13px;
       cursor: pointer;
